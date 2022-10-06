@@ -3,5 +3,9 @@
 version = 3
 
 [[package]]
-name = "toy-db"
+name = "rb_tree"
+version = "0.1.0"
+
+[[package]]
+name = "toy_db"
 version = "0.1.0"

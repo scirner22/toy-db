@@ -1,54 +1,88 @@
 // TODO move to red-black tree after full binary tree implementation
 
-struct BinaryTree<T> {
-    data: T,
-    left: Option<Box<BinaryTree<T>>>,
-    right: Option<Box<BinaryTree<T>>>,
+use std::cmp::Ordering;
+
+#[derive(Debug)]
+enum BinaryTree<T> {
+    Node {
+        data: T,
+        left: Box<BinaryTree<T>>,
+        right: Box<BinaryTree<T>>,
+    },
+    Sentinel,
+}
+
+impl<T> Default for BinaryTree<T> {
+    fn default() -> Self {
+        BinaryTree::Sentinel
+    }
 }
 
 impl<T> BinaryTree<T>
 where
-    T: PartialEq,
-    T: PartialOrd,
+    T: Ord,
 {
     fn new(data: T) -> Self {
-        BinaryTree {
+        BinaryTree::Node {
             data,
-            left: None,
-            right: None,
+            left: Default::default(),
+            right: Default::default(),
         }
     }
 
     fn left(mut self, node: BinaryTree<T>) -> Self {
-        self.left = Some(Box::new(node));
+        match self {
+            BinaryTree::Node { data: _, ref mut left, right: _ } => *left = Box::new(node),
+            BinaryTree::Sentinel => self = node,
+        }
+
         self
     }
 
     fn right(mut self, node: BinaryTree<T>) -> Self {
-        self.right = Some(Box::new(node));
+        match self {
+            BinaryTree::Node { data: _, left: _, ref mut right } => *right = Box::new(node),
+            BinaryTree::Sentinel => self = node,
+        }
+
         self
     }
 
-    pub fn insert(&mut self, data: T) {
+    fn data(&self) -> Option<&T> {
+        match self {
+            BinaryTree::Node { data, left: _, right: _ } => Some(data),
+            BinaryTree::Sentinel => None,
+        }
+    }
+
+    fn left_tree(&self) -> Option<&BinaryTree<T>> {
+        match self {
+            BinaryTree::Node { data: _, left, right: _ } => Some(left),
+            BinaryTree::Sentinel => None,
+        }
+    }
+
+    fn right_tree(&self) -> Option<&BinaryTree<T>> {
+        match self {
+            BinaryTree::Node { data: _, left: _, right } => Some(right),
+            BinaryTree::Sentinel => None,
+        }
+    }
+
+    pub fn insert(&mut self, new: T) {
         let mut node = self;
 
         loop {
-            if node.data == data {
-                return;
-            } else if node.data < data {
-                if let Some(ref mut right) = node.right {
-                    node = right;
-                } else {
-                    node.right = Some(Box::new(BinaryTree::new(data)));
+            match node {
+                BinaryTree::Node { ref data, ref mut left, ref mut right } => match new.cmp(data) {
+                    Ordering::Less => node = left,
+                    Ordering::Greater => node = right,
+                    Ordering::Equal => return,
+                },
+                BinaryTree::Sentinel => {
+                    *node = BinaryTree::new(new);
                     return;
-                }
-            } else {
-                if let Some(ref mut left) = node.left {
-                    node = left;
-                } else {
-                    node.left = Some(Box::new(BinaryTree::new(data)));
-                    return;
-                }
+                },
             }
         }
     }
@@ -56,24 +90,19 @@ where
     // pub fn remove(&mut self, data: T) -> Option<&BinaryTree<T>> {
     // }
 
-    pub fn contains(&mut self, data: T) -> bool {
+    pub fn contains(&mut self, needle: T) -> bool {
         let mut node = self;
 
         loop {
-            if node.data == data {
-                return true;
-            } else if node.data < data {
-                if let Some(ref mut right) = node.right {
-                    node = right;
-                } else {
+            match node {
+                BinaryTree::Node { ref data, ref mut left, ref mut right } => match needle.cmp(data) {
+                    Ordering::Less => node = left,
+                    Ordering::Greater => node = right,
+                    Ordering::Equal => return true,
+                },
+                BinaryTree::Sentinel => {
                     return false;
-                }
-            } else {
-                if let Some(ref mut left) = node.left {
-                    node = left;
-                } else {
-                    return false;
-                }
+                },
             }
         }
     }
@@ -87,7 +116,10 @@ mod tests {
     fn single_node() {
         let tree = BinaryTree::new(1);
 
-        assert_eq!(tree.data, 1);
+        match tree {
+            BinaryTree::Node { data, left, right } => assert_eq!(data, 1),
+            BinaryTree::Sentinel => unreachable!("{:#?}", &tree),
+        }
     }
 
     #[test]
@@ -99,16 +131,22 @@ mod tests {
                     .right(BinaryTree::new(7)),
             )
             .right(BinaryTree::new(20).right(BinaryTree::new(25)));
-        let left_tree = tree.left.unwrap();
-        let right_tree = tree.right.unwrap();
+        let left_tree = match &tree {
+            BinaryTree::Node { data: _, left, right: _ } => left,
+            BinaryTree::Sentinel => unreachable!("{:#?}", tree),
+        };
+        let right_tree = match &tree {
+            BinaryTree::Node { data: _, left: _, right } => right,
+            BinaryTree::Sentinel => unreachable!("{:#?}", tree),
+        };
 
-        assert_eq!(left_tree.left.unwrap().data, 2);
-        assert_eq!(left_tree.data, 5);
-        assert_eq!(left_tree.right.unwrap().data, 7);
-        assert_eq!(tree.data, 10);
-        assert!(right_tree.left.is_none());
-        assert_eq!(right_tree.data, 20);
-        assert_eq!(right_tree.right.unwrap().data, 25);
+        assert_eq!(left_tree.left_tree().unwrap().data().unwrap().to_owned(), 2);
+        assert_eq!(left_tree.data().unwrap().to_owned(), 5);
+        assert_eq!(left_tree.right_tree().unwrap().data().unwrap().to_owned(), 7);
+        assert_eq!(tree.data().unwrap().to_owned(), 10);
+        assert!(right_tree.left_tree().unwrap().data().is_none());
+        assert_eq!(right_tree.data().unwrap().to_owned(), 20);
+        assert_eq!(right_tree.right_tree().unwrap().data().unwrap().to_owned(), 25);
     }
 
     #[test]

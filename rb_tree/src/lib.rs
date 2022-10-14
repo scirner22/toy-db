@@ -1,6 +1,10 @@
-// TODO move to red-black tree after full binary tree implementation
-
 use std::cmp::Ordering;
+
+#[derive(Debug)]
+enum Color {
+    Red,
+    Black,
+}
 
 #[derive(Debug)]
 enum BinaryTree<T> {
@@ -8,6 +12,7 @@ enum BinaryTree<T> {
         data: T,
         left: Box<BinaryTree<T>>,
         right: Box<BinaryTree<T>>,
+        color: Color,
     },
     Sentinel,
 }
@@ -27,12 +32,30 @@ where
             data,
             left: Default::default(),
             right: Default::default(),
+            color: Color::Red,
+        }
+    }
+
+    fn color(&self) -> &Color {
+        match self {
+            BinaryTree::Node {
+                data: _,
+                left: _,
+                right: _,
+                color,
+            } => color,
+            BinaryTree::Sentinel => &Color::Black,
         }
     }
 
     fn left(mut self, node: BinaryTree<T>) -> Self {
         match self {
-            BinaryTree::Node { data: _, ref mut left, right: _ } => *left = Box::new(node),
+            BinaryTree::Node {
+                data: _,
+                ref mut left,
+                right: _,
+                color: _,
+            } => *left = Box::new(node),
             BinaryTree::Sentinel => self = node,
         }
 
@@ -41,7 +64,12 @@ where
 
     fn right(mut self, node: BinaryTree<T>) -> Self {
         match self {
-            BinaryTree::Node { data: _, left: _, ref mut right } => *right = Box::new(node),
+            BinaryTree::Node {
+                data: _,
+                left: _,
+                ref mut right,
+                color: _,
+            } => *right = Box::new(node),
             BinaryTree::Sentinel => self = node,
         }
 
@@ -50,21 +78,36 @@ where
 
     fn data(&self) -> Option<&T> {
         match self {
-            BinaryTree::Node { data, left: _, right: _ } => Some(data),
+            BinaryTree::Node {
+                data,
+                left: _,
+                right: _,
+                color: _,
+            } => Some(data),
             BinaryTree::Sentinel => None,
         }
     }
 
     fn left_tree(&self) -> Option<&BinaryTree<T>> {
         match self {
-            BinaryTree::Node { data: _, left, right: _ } => Some(left),
+            BinaryTree::Node {
+                data: _,
+                left,
+                right: _,
+                color: _,
+            } => Some(left),
             BinaryTree::Sentinel => None,
         }
     }
 
     fn right_tree(&self) -> Option<&BinaryTree<T>> {
         match self {
-            BinaryTree::Node { data: _, left: _, right } => Some(right),
+            BinaryTree::Node {
+                data: _,
+                left: _,
+                right,
+                color: _,
+            } => Some(right),
             BinaryTree::Sentinel => None,
         }
     }
@@ -74,7 +117,12 @@ where
 
         loop {
             match node {
-                BinaryTree::Node { ref data, ref mut left, ref mut right } => match new.cmp(data) {
+                BinaryTree::Node {
+                    ref data,
+                    ref mut left,
+                    ref mut right,
+                    color: _,
+                } => match new.cmp(data) {
                     Ordering::Less => node = left,
                     Ordering::Greater => node = right,
                     Ordering::Equal => return,
@@ -82,27 +130,29 @@ where
                 BinaryTree::Sentinel => {
                     *node = BinaryTree::new(new);
                     return;
-                },
+                }
             }
         }
     }
 
-    // pub fn remove(&mut self, data: T) -> Option<&BinaryTree<T>> {
-    // }
-
-    pub fn contains(&mut self, needle: T) -> bool {
+    pub fn contains(&self, needle: T) -> bool {
         let mut node = self;
 
         loop {
             match node {
-                BinaryTree::Node { ref data, ref mut left, ref mut right } => match needle.cmp(data) {
+                BinaryTree::Node {
+                    data,
+                    left,
+                    right,
+                    color: _,
+                } => match needle.cmp(data) {
                     Ordering::Less => node = left,
                     Ordering::Greater => node = right,
                     Ordering::Equal => return true,
                 },
                 BinaryTree::Sentinel => {
                     return false;
-                },
+                }
             }
         }
     }
@@ -117,7 +167,12 @@ mod tests {
         let tree = BinaryTree::new(1);
 
         match tree {
-            BinaryTree::Node { data, left, right } => assert_eq!(data, 1),
+            BinaryTree::Node {
+                data,
+                left,
+                right,
+                color: _,
+            } => assert_eq!(data, 1),
             BinaryTree::Sentinel => unreachable!("{:#?}", &tree),
         }
     }
@@ -132,26 +187,42 @@ mod tests {
             )
             .right(BinaryTree::new(20).right(BinaryTree::new(25)));
         let left_tree = match &tree {
-            BinaryTree::Node { data: _, left, right: _ } => left,
+            BinaryTree::Node {
+                data: _,
+                left,
+                right: _,
+                color: _,
+            } => left,
             BinaryTree::Sentinel => unreachable!("{:#?}", tree),
         };
         let right_tree = match &tree {
-            BinaryTree::Node { data: _, left: _, right } => right,
+            BinaryTree::Node {
+                data: _,
+                left: _,
+                right,
+                color: _,
+            } => right,
             BinaryTree::Sentinel => unreachable!("{:#?}", tree),
         };
 
         assert_eq!(left_tree.left_tree().unwrap().data().unwrap().to_owned(), 2);
         assert_eq!(left_tree.data().unwrap().to_owned(), 5);
-        assert_eq!(left_tree.right_tree().unwrap().data().unwrap().to_owned(), 7);
+        assert_eq!(
+            left_tree.right_tree().unwrap().data().unwrap().to_owned(),
+            7
+        );
         assert_eq!(tree.data().unwrap().to_owned(), 10);
         assert!(right_tree.left_tree().unwrap().data().is_none());
         assert_eq!(right_tree.data().unwrap().to_owned(), 20);
-        assert_eq!(right_tree.right_tree().unwrap().data().unwrap().to_owned(), 25);
+        assert_eq!(
+            right_tree.right_tree().unwrap().data().unwrap().to_owned(),
+            25
+        );
     }
 
     #[test]
     fn contains() {
-        let mut tree = BinaryTree::new(10)
+        let tree = BinaryTree::new(10)
             .left(
                 BinaryTree::new(5)
                     .left(BinaryTree::new(2))
